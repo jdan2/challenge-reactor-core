@@ -24,10 +24,10 @@ public class CSVUtilTest {
     }
 
     @Test
-    void stream_filtrarJugadoresMayoresA35(){
+    void stream_filtrarJugadoresMayoresA34(){
         List<Player> list = CsvUtilFile.getPlayers();
         Map<String, List<Player>> listFilter = list.parallelStream()
-                .filter(player -> player.age >= 35)
+                .filter(player -> player.age > 34)
                 .map(player -> {
                     player.name = player.name.toUpperCase(Locale.ROOT);
                     return player;
@@ -41,21 +41,35 @@ public class CSVUtilTest {
         assert listFilter.size() == 322;
     }
 
+    @Test
+    void reactive_rakingDeLosJugadoresPorPais(){
+        List<Player> list = CsvUtilFile.getPlayers();
+        Flux<Player> listFlux = Flux.fromStream(list.parallelStream()).cache();
+            Mono<Map<String, Collection<Player>>> listFilter = listFlux
+                .sort((player1,player2)->Math.max(player1.getWinners(), player2.getWinners()))
+                .distinct()
+                .collectMultimap(Player::getNational);
+             //   listFilter.subscribe(System.out::println);
+            System.out.println(listFilter.block().size());
+        //System.out.println(listFilter.block().toString());
+        assert listFilter.block().size() == 164;
+    }
+
 
     @Test
-    void reactive_filtrarJugadoresMayoresA35(){
+    void reactive_filtrarJugadoresMayoresA34(){
         List<Player> list = CsvUtilFile.getPlayers();
         Flux<Player> listFlux = Flux.fromStream(list.parallelStream()).cache();
         Mono<Map<String, Collection<Player>>> listFilter = listFlux
-                .filter(player -> player.age >= 35)
+                .filter(player -> player.age > 34)
                 .map(player -> {
                     player.name = player.name.toUpperCase(Locale.ROOT);
                     return player;
                 })
                 .buffer(100)
                 .flatMap(playerA -> listFlux
-                         .filter(playerB -> playerA.stream()
-                                 .anyMatch(a ->  a.club.equals(playerB.club)))
+                        .filter(playerB -> playerA.stream()
+                                .anyMatch(a ->  a.club.equals(playerB.club)))
                 )
                 .distinct()
                 .collectMultimap(Player::getClub);
